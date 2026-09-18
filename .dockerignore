@@ -1,0 +1,32 @@
+# Allowlist: credentials, local outputs and unrelated files never enter the build context.
+**
+!package.json
+!bun.lock
+!bunfig.toml
+!tsconfig.json
+!vite.config.ts
+!playwright.config.ts
+!index.html
+!src/
+!src/**
+!public/
+!public/**
+!server/
+!server/**
+!shared/
+!shared/**
+!scripts/
+!scripts/**
+!tests/
+!tests/**
+!benchmarks/
+!benchmarks/*.ts
+# Saved synthetic probe data is used to verify the derived evidence during unit tests.
+!benchmarks/results/
+!benchmarks/results/model-probes.json
+# Keep secrets excluded even if someone adds them under an allowed source folder.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/node_modules

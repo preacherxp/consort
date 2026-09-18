@@ -12,6 +12,7 @@
     "start": "NODE_ENV=production bun server/index.ts",
     "test": "bun test server",
     "test:e2e": "playwright test",
+    "test:deployment": "bun run scripts/test-deployment.ts",
     "bench:evidence:refresh": "bun run scripts/refresh-benchmark-evidence.ts",
     "bench:routing": "bun run scripts/benchmark-routing.ts",
     "bench:models": "bun run scripts/benchmark-models.ts"

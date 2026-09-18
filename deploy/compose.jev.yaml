@@ -1,0 +1,44 @@
+# Merge into your existing stack, never run this file by itself:
+# docker compose --env-file .env --env-file .env.jev -f compose.yaml -f /path/to/model-router/deploy/compose.jev.yaml ...
+# Append the site's block from ../Caddyfile to your existing Caddyfile.
+services:
+  caddy:
+    # Keep your existing image, ports, volumes, networks, and other dependencies.
+    environment:
+      JEV_AUTH_USER: ${JEV_AUTH_USER:-consort}
+      JEV_AUTH_HASH: ${JEV_AUTH_HASH:?Generate a password hash with caddy hash-password}
+    depends_on:
+      jev:
+        condition: service_healthy
+
+  jev:
+    image: ${JEV_IMAGE:-ghcr.io/preacherxp/consort:latest}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3007"
+      APP_ORIGIN: https://jev.purecode.sh
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set an OpenRouter key with a spending cap}
+      OPENROUTER_BASE_URL: https://openrouter.ai/api/v1
+      OPENROUTER_MODEL_ID: typesafe/jev-1.13
+    expose:
+      - "3007"
+    networks:
+      - purecode
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

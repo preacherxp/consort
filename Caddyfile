@@ -1,0 +1,22 @@
+jev.purecode.sh {
+	# Protect the paid API. Generate a bcrypt hash with: caddy hash-password
+	# These variables are required by Compose; no plaintext password is stored here.
+	basic_auth {
+		{$JEV_AUTH_USER:consort} {$JEV_AUTH_HASH}
+	}
+
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	request_body {
+		max_size 20KB
+	}
+
+	reverse_proxy jev:3007
+}
