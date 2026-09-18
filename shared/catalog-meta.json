@@ -1,0 +1,5 @@
+{
+  "verifiedAt": "2026-09-18T17:37:05.883Z",
+  "source": "https://openrouter.ai/api/v1/models",
+  "policy": "Reviewed catalog with explicit user exclusions applied on every refresh. Listing dates, successor and preview labels are metadata, not performance rankings. All candidates are evaluated using the same task-specific criteria."
+}

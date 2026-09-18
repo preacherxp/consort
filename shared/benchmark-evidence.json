@@ -1,0 +1,518 @@
+{
+  "studyId": "consort-microtasks-2026-09-18-e296a558089f",
+  "source": "benchmarks/results/model-probes.json",
+  "sourceSha256": "e296a558089fdc626a3f3874c66581d7a956de12cca44c24da367f30b7c501b4",
+  "runStartedAt": "2026-09-18T17:31:22.902Z",
+  "protocol": {
+    "samplesPerModelTask": 1,
+    "temperature": 0,
+    "reasoning": "low where supported; provider implementations differ",
+    "maxCompletionTokens": 2048,
+    "outputFormat": "JSON requested in the prompt; native JSON mode was NOT enabled",
+    "tasks": [
+      {
+        "id": "locale-invoice",
+        "task": "A German invoice lists 3 items at \"1.234,50 EUR\" each, then a 10% discount on the items only, then shipping of \"12,00 EUR\". VAT is already included; do not add tax. Return only JSON with subtotal_cents, discount_cents, shipping_cents and total_cents as integer euro cents."
+      },
+      {
+        "id": "microtask-order",
+        "task": "Predict the output in a standard JavaScript runtime. Return only the printed JSON array, not code or explanation.\nconst out = [];\nPromise.resolve().then(() => { out.push(\"A\"); queueMicrotask(() => out.push(\"C\")); }).then(() => out.push(\"D\"));\nqueueMicrotask(() => { out.push(\"B\"); queueMicrotask(() => out.push(\"E\")); });\nsetTimeout(() => console.log(JSON.stringify(out)), 0);"
+      },
+      {
+        "id": "sql-null-aggregation",
+        "task": "Use PostgreSQL SQL semantics. Table t has rows (team,score): (A,10),(A,NULL),(A,10),(B,NULL),(B,NULL),(C,0). For SELECT team, COUNT(*) AS rows, COUNT(score) AS nonnull, COUNT(DISTINCT score) AS distinct_scores, SUM(score) AS total FROM t GROUP BY team ORDER BY team; return only a JSON array of objects using these column names. Represent SQL NULL as JSON null."
+      },
+      {
+        "id": "retry-idempotency",
+        "task": "A ledger starts at 100. For each event, if its id has never been successfully applied, add its delta and remember the id; otherwise do nothing. Failed attempts do not change the balance and do not remember the id. Events in order: (id=a, delta=-30, success=false), (id=b, delta=20, success=true), (id=a, delta=-30, success=true), (id=b, delta=20, success=true), (id=c, delta=-15, success=false), (id=c, delta=-15, success=true), (id=a, delta=-30, success=true), (id=d, delta=5, success=true). Return only JSON with balance and applied_ids (in order of successful first application)."
+      }
+    ],
+    "limitations": "Four synthetic bounded tasks, one sample per model/task, sequential requests. Not a general leaderboard or a blinded/randomized evaluation. Timing includes network/provider effects. No writing, vision, long-context, complex architecture, or difficult-proof quality was measured."
+  },
+  "models": [
+    {
+      "modelId": "anthropic/claude-haiku-4.5",
+      "attempted": 4,
+      "strictCorrect": 0,
+      "contentCorrectIncludingMarkdown": 3,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "invalid-json",
+          "strictJson": false,
+          "answerCorrect": true,
+          "markdownWrapped": true,
+          "observedElapsedMs": 2551,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "wrong-answer",
+          "strictJson": true,
+          "answerCorrect": false,
+          "markdownWrapped": false,
+          "observedElapsedMs": 7922,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "invalid-json",
+          "strictJson": false,
+          "answerCorrect": true,
+          "markdownWrapped": true,
+          "observedElapsedMs": 3673,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "invalid-json",
+          "strictJson": false,
+          "answerCorrect": true,
+          "markdownWrapped": true,
+          "observedElapsedMs": 3572,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "anthropic/claude-opus-5",
+      "attempted": 4,
+      "strictCorrect": 4,
+      "contentCorrectIncludingMarkdown": 4,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 3931,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 6831,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2969,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 5098,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "anthropic/claude-sonnet-5",
+      "attempted": 4,
+      "strictCorrect": 2,
+      "contentCorrectIncludingMarkdown": 3,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 4303,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "wrong-answer",
+          "strictJson": true,
+          "answerCorrect": false,
+          "markdownWrapped": false,
+          "observedElapsedMs": 7142,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "invalid-json",
+          "strictJson": false,
+          "answerCorrect": true,
+          "markdownWrapped": true,
+          "observedElapsedMs": 2276,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 5022,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "deepseek/deepseek-v4.1-flash",
+      "attempted": 4,
+      "strictCorrect": 4,
+      "contentCorrectIncludingMarkdown": 4,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 1578,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 25599,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 16291,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 3040,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "inclusionai/ling-3.0-flash",
+      "attempted": 4,
+      "strictCorrect": 3,
+      "contentCorrectIncludingMarkdown": 3,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 3532,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "token-budget-exhausted",
+          "strictJson": null,
+          "answerCorrect": null,
+          "markdownWrapped": false,
+          "observedElapsedMs": 5120,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2590,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2576,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "openai/gpt-5.6-luna",
+      "attempted": 4,
+      "strictCorrect": 4,
+      "contentCorrectIncludingMarkdown": 4,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2178,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2501,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 1609,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2142,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "openai/gpt-5.6-sol",
+      "attempted": 4,
+      "strictCorrect": 4,
+      "contentCorrectIncludingMarkdown": 4,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2539,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 3435,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 1821,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 1270,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "qwen/qwen3.8-flash",
+      "attempted": 4,
+      "strictCorrect": 2,
+      "contentCorrectIncludingMarkdown": 2,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 5863,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "token-budget-exhausted",
+          "strictJson": null,
+          "answerCorrect": null,
+          "markdownWrapped": false,
+          "observedElapsedMs": 38654,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 18024,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "api-error",
+          "strictJson": null,
+          "answerCorrect": null,
+          "markdownWrapped": false,
+          "observedElapsedMs": 4066,
+          "httpStatus": 429
+        }
+      ]
+    },
+    {
+      "modelId": "xiaomi/mimo-v2.5-pro",
+      "attempted": 4,
+      "strictCorrect": 3,
+      "contentCorrectIncludingMarkdown": 4,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 44051,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 18766,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "invalid-json",
+          "strictJson": false,
+          "answerCorrect": true,
+          "markdownWrapped": true,
+          "observedElapsedMs": 8406,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 7696,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "z-ai/glm-5.3",
+      "attempted": 4,
+      "strictCorrect": 4,
+      "contentCorrectIncludingMarkdown": 4,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 2594,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 10963,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 3573,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 1025,
+          "httpStatus": null
+        }
+      ]
+    },
+    {
+      "modelId": "z-ai/glm-5.3-flash",
+      "attempted": 4,
+      "strictCorrect": 3,
+      "contentCorrectIncludingMarkdown": 4,
+      "observations": [
+        {
+          "task": "locale-invoice",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 1923,
+          "httpStatus": null
+        },
+        {
+          "task": "microtask-order",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 4547,
+          "httpStatus": null
+        },
+        {
+          "task": "sql-null-aggregation",
+          "outcome": "invalid-json",
+          "strictJson": false,
+          "answerCorrect": true,
+          "markdownWrapped": true,
+          "observedElapsedMs": 2284,
+          "httpStatus": null
+        },
+        {
+          "task": "retry-idempotency",
+          "outcome": "pass",
+          "strictJson": true,
+          "answerCorrect": true,
+          "markdownWrapped": false,
+          "observedElapsedMs": 1377,
+          "httpStatus": null
+        }
+      ]
+    }
+  ]
+}

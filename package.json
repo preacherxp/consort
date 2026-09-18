@@ -1,0 +1,36 @@
+{
+  "name": "consort-model-matchmaker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "catalog:refresh": "bun run scripts/refresh-catalog.ts",
+    "dev:api": "bun --watch server/index.ts",
+    "dev:web": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "start": "NODE_ENV=production bun server/index.ts",
+    "test": "bun test server",
+    "test:e2e": "playwright test",
+    "bench:evidence:refresh": "bun run scripts/refresh-benchmark-evidence.ts",
+    "bench:routing": "bun run scripts/benchmark-routing.ts",
+    "bench:models": "bun run scripts/benchmark-models.ts"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "motion": "^12.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.51.0",
+    "@types/bun": "^1.2.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.0"
+  }
+}
