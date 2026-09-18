@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run scripts/dev.ts",
+    "demo:social": "bun run scripts/create-social-demo.ts",
     "catalog:refresh": "bun run scripts/refresh-catalog.ts",
     "dev:api": "bun --watch server/index.ts",
     "dev:web": "vite --host 127.0.0.1",

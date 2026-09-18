@@ -4,9 +4,6 @@
 services:
   caddy:
     # Keep your existing image, ports, volumes, networks, and other dependencies.
-    environment:
-      JEV_AUTH_USER: ${JEV_AUTH_USER:-consort}
-      JEV_AUTH_HASH: ${JEV_AUTH_HASH:?Generate a password hash with caddy hash-password}
     depends_on:
       jev:
         condition: service_healthy

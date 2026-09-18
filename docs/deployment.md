@@ -1,13 +1,13 @@
 # Deploy Consort at https://jev.purecode.sh
 
-The image serves the built React app and API on **3007**. Only Caddy publishes ports. Caddy handles HTTPS and password authentication; the OpenRouter key exists only in the app container's runtime environment. No target models run.
+The image serves the built React app and API on **3007**. Only Caddy publishes ports. Caddy handles HTTPS with public access and no login; the OpenRouter key exists only in the app container's runtime environment. No target models run.
 
 ## Files
 
 - `Dockerfile`: multi-stage, frozen dependencies, build + unit tests, non-root Bun runtime, healthcheck.
 - `.dockerignore`: source allowlist; `.env` files never enter the build context.
 - `compose.yaml`: **standalone** Caddy + Jev deployment.
-- `deploy/compose.jev.yaml`: **overlay for your existing Compose stack** on its `purecode` network; adds Jev and Caddy environment/dependency settings without replacing existing services.
+- `deploy/compose.jev.yaml`: **overlay for your existing Compose stack** on its `purecode` network; adds Jev and a Caddy dependency without replacing existing services.
 - `Caddyfile`: site block for `jev.purecode.sh`; append this block to your existing Caddyfile.
 - `.env.production.example`: required production settings, without credentials.
 
@@ -24,7 +24,7 @@ Tags:
 - `sha-<full-commit-sha>`: every published build.
 - The exact Git tag, such as `v0.1.0`: version-tag builds. Version tags do not move `latest`.
 
-The workflow uses the automatically supplied **`GITHUB_TOKEN`**, with `packages: write` only in the publish job. No PAT, registry password, OpenRouter key, or Caddy password is required in CI. **Do not add your paid provider key to CI.** Benchmarks that spend credits are opt-in and are not run by this workflow.
+The workflow uses the automatically supplied **`GITHUB_TOKEN`**, with `packages: write` only in the publish job. No PAT, registry password, or OpenRouter key is required in CI. **Do not add your paid provider key to CI.** Benchmarks that spend credits are opt-in and are not run by this workflow.
 
 **Repository layout matters:** `model-router` is now a standalone local Git repository, with `.github/` at its root. No remote is configured and nothing has been pushed. Connect it to the intended Consort repository before publishing; do not reuse the enclosing Incident Commander remote. For a monorepo, intentionally relocate/adapt the workflow and Docker context instead.
 
@@ -56,23 +56,14 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 
 - Point the **A record for `jev.purecode.sh`** to your server. Publish an AAAA record only if its IPv6 address is reachable. Allow inbound TCP 80/443; UDP 443 is optional for HTTP/3. Keep your other domains unchanged.
 - Create a dedicated OpenRouter key with a spending cap. Do not bake it into the Docker image or commit it.
-- Generate the site's password hash interactively (the password is not placed in shell history):
-
-```sh
-docker run --rm -it caddy:2-alpine caddy hash-password
-```
-
 Copy `.env.production.example` to `.env.jev` **beside your existing stack's Compose file**, then `chmod 600 .env.jev`. Fill in:
 
 ```dotenv
 OPENROUTER_API_KEY=your-server-side-key
-JEV_AUTH_USER=consort
-# Paste the full bcrypt hash, preserving these SINGLE QUOTES around it.
-JEV_AUTH_HASH='$2a$...'
 JEV_IMAGE=ghcr.io/preacherxp/consort:jev-2026-09-18-1
 ```
 
-The single quotes prevent Compose from interpreting `$` characters in the hash. Use a simple alphanumeric username. Neither the API key nor the hash should be added to the Caddyfile. Environment variables are visible to Docker administrators; this is not an external secret manager.
+Do not add the API key to the Caddyfile. The site has no browser login; no auth username or password hash is needed. Environment variables are visible to Docker administrators; this is not an external secret manager.
 
 ## 3. Add to your existing stack (recommended)
 
@@ -97,10 +88,10 @@ docker compose --env-file .env --env-file .env.jev \
 docker compose --env-file .env --env-file .env.jev \
   -f compose.yaml -f compose.jev.yaml up -d --no-deps --wait jev
 
-# One-time recreate is required to load the new Caddy environment variables.
-# Expect a brief proxy restart affecting the other sites; schedule accordingly.
+# Reload the running proxy with the validated site block.
 docker compose --env-file .env --env-file .env.jev \
-  -f compose.yaml -f compose.jev.yaml up -d --no-deps --force-recreate caddy
+  -f compose.yaml -f compose.jev.yaml exec caddy \
+  caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
 Substitute your actual base filename (for example `docker-compose.yml`). The overlay reuses the existing `purecode` network; it does not create a second Compose project or an external network. Use the **same project name/directory as your running stack** so network and volume names stay unchanged. Do not run `down`, especially not `down -v`, on the shared production stack.
@@ -108,14 +99,13 @@ Substitute your actual base filename (for example `docker-compose.yml`). The ove
 Verify:
 
 ```sh
-# Expect 401 without credentials. HTTPS must validate normally; do not use -k.
+# Expect 200 without credentials. HTTPS must validate normally; do not use -k.
 curl -I https://jev.purecode.sh
-# curl prompts for the password; do not paste it into the command line.
-curl --user consort https://jev.purecode.sh/api/health
+curl https://jev.purecode.sh/api/health
 # Expected JSON: {"configured":true,"router":"typesafe/jev-1.13"}
 ```
 
-Open the domain in a browser, sign in, and submit a small task. That last step makes a paid Jev request. Healthchecks and page loads do not. If TLS fails, check DNS (including stale AAAA records), firewall, and Caddy logs. If the app is unhealthy, check its runtime key and app logs. Preserve `/data` and `/config` volumes so certificate state survives restarts.
+Open the domain in a browser and submit a small task. That last step makes a paid Jev request. Healthchecks and page loads do not. If TLS fails, check DNS (including stale AAAA records), firewall, and Caddy logs. If the app is unhealthy, check its runtime key and app logs. Preserve `/data` and `/config` volumes so certificate state survives restarts.
 
 ## Standalone alternative
 
@@ -124,24 +114,24 @@ Only use this when no existing proxy owns ports 80/443. In this project director
 ```sh
 cp .env.production.example .env.production
 chmod 600 .env.production
-# Fill in the key, username and quoted password hash.
+# Fill in the server-side OpenRouter key.
 docker compose --env-file .env.production config --quiet
 docker compose --env-file .env.production up -d --build --wait
 ```
 
-This builds locally; a registry is not required. The configured image name is simply the local image tag when building this way. DNS/TLS/authentication requirements are the same.
+This builds locally; a registry is not required. The configured image name is simply the local image tag when building this way. DNS/TLS requirements and public access are the same.
 
 ## Updates and rollback
 
 Publish a new release tag, update `JEV_IMAGE` in `.env.jev`, then repeat `pull jev` and `up -d --no-deps --wait jev` with the same two Compose files and environment files. Caddy does not need to restart for app-only updates. Single-replica updates can briefly interrupt in-flight requests; this is not zero-downtime orchestration.
 
-To roll back, restore the previous image tag and repeat those commands. For Caddyfile-only changes, validate first and use `exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile`. Changed authentication environment variables require recreating Caddy again, not just reloading its file.
+To roll back, restore the previous image tag and repeat those commands. For Caddyfile-only changes, validate first and use `exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile`.
 
 ## Public access and spending safety
 
-The supplied site is password-protected by default. Missing auth hash or provider key fails Compose validation. The app has no published host port, so the proxy is the only public entry point.
+The supplied site is intentionally public, with no password prompt. A missing provider key still fails Compose validation. The app has no published host port, so the proxy is the only public entry point. If upgrading from the password-protected configuration, remove the old site's `basic_auth` block and obsolete `JEV_AUTH_USER` / `JEV_AUTH_HASH` settings, then validate and reload Caddy.
 
-The existing in-memory limiter is **20 requests/minute and four concurrent requests per process**, not a per-user quota or distributed abuse defense. Keep one replica and a provider spending cap. Do not remove the `basic_auth` block for an anonymous public launch without first adding a proper authenticated/shared abuse gate. TLS and origin checks alone do not prevent someone from spending your provider credits.
+The OpenRouter key stays server-side; public routing requests use its credits. The existing in-memory limiter is **20 requests/minute and four concurrent requests per process**, not a per-user quota or distributed abuse defense. Keep one replica and a provider spending cap. TLS and origin checks are not spending limits.
 
 The credentials in the commented unrelated services from your reference configuration are not copied here. If those pasted values are real, rotate them, even though those services are commented out.
 
@@ -151,4 +141,4 @@ The credentials in the commented unrelated services from your reference configur
 bun run test:deployment
 ```
 
-Builds the image and starts an isolated test stack using a dummy provider key, a temporary password, HTTP on an ephemeral **loopback-only** port, and its own temporary Docker volumes. It validates the real HTTPS Caddyfile, checks overlay merging, authentication, health, CSP, origin enforcement, secret-file absence and non-root execution. It deletes only its own test containers/volumes afterward. No public DNS, certificate issuance, registry push or paid API call is involved. Docker must be running.
+Builds the image and starts an isolated test stack using a dummy provider key, HTTP on an ephemeral **loopback-only** port, and its own temporary Docker volumes. It validates the real HTTPS Caddyfile, checks overlay merging, anonymous page/API access, health, CSP, origin enforcement, secret-file absence and non-root execution. It deletes only its own test containers/volumes afterward. No public DNS, certificate issuance, registry push or paid API call is involved. Docker must be running.

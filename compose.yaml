@@ -7,9 +7,6 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"
-    environment:
-      JEV_AUTH_USER: ${JEV_AUTH_USER:-consort}
-      JEV_AUTH_HASH: ${JEV_AUTH_HASH:?Generate a password hash with caddy hash-password}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

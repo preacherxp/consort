@@ -34,7 +34,7 @@ Production browser → local API → actual Jev, using the quick-fix example:
 
 - `vendor-neutral-v3` removes named-vendor preferences, automatic age/price/size ranking, and asymmetric successor penalties. Both model questions use identical candidate metadata; scored older runners-up are no longer silently suppressed.
 - Unit tests check shared guidance and metadata templates across all candidates and preserve Jev's selected ID from every provider. These are structural regression tests, not evidence of empirically unbiased or optimal task performance.
-- `bun run test:deployment` passed: production Docker build and unit tests; real Caddyfile validation; existing-stack Compose merge; missing-credential failure; isolated read-only/non-root app health; unauthenticated 401s; authenticated static/API access; CSP; secret-file 404; public origin accepted and foreign origin rejected.
+- `bun run test:deployment` passed: production Docker build and unit tests; real Caddyfile validation; existing-stack Compose merge; missing-provider-key failure; isolated read-only/non-root app health; anonymous static/API access without a login challenge; CSP; secret-file 404; public origin accepted and foreign origin rejected.
 - Smoke stack used dummy credentials and a loopback-only ephemeral HTTP port. Its containers/volumes were removed afterward. No image was pushed, no public certificate requested, no DNS changed, and no paid routing request made by this deployment test.
 
 ## Live catalog
@@ -59,4 +59,4 @@ The inspector uses these actual response fields; it does not fabricate an intern
 
 ## Boundaries
 
-No public deployment, hosted CI run, broad browser-engine test, or comprehensive recommendation-quality benchmark was performed. Local Docker authentication and bounded real-model microtasks were tested as described above. See README for public-launch spending caps and abuse controls. App prompts/traces remain in page memory only; the opt-in benchmark scripts separately persist synthetic test cases and their results.
+No public deployment, hosted CI run, broad browser-engine test, or comprehensive recommendation-quality benchmark was performed. Local Docker public access and bounded real-model microtasks were tested as described above. See README for public-launch spending caps and abuse controls. App prompts/traces remain in page memory only; the opt-in benchmark scripts separately persist synthetic test cases and their results.

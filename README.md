@@ -81,6 +81,8 @@ For a recording: submit **A tricky bug**, pass a profile, match the next, and sa
 
 Design references behind the refinement: **[docs/design-references.md](docs/design-references.md)** — verified first-party sources and concrete ideas for improving hierarchy and fluid motion without adding visual noise.
 
+Launch media: **[GIF, MP4, poster, and X post](docs/social/README.md)**. Reproduce with `bun run demo:social`; the real UI replays a saved decision without paid API calls.
+
 ## Docker + Caddy deployment
 
 See **[docs/deployment.md](docs/deployment.md)** for `https://jev.purecode.sh`, including the overlay for your existing Caddy/`purecode` stack, GHCR publishing, credentials, DNS, verification and rollback.
@@ -90,7 +92,7 @@ See **[docs/deployment.md](docs/deployment.md)** for `https://jev.purecode.sh`, 
 - Runtime settings: `.env.production.example` (never commit the filled-in file).
 - Local verification: `bun run test:deployment` builds and tests isolated Docker containers with dummy credentials and no paid requests.
 
-The proxy is password-protected by default; only it publishes ports. The app runs non-root with a read-only filesystem. `.github/workflows/docker-publish.yml` tests and publishes AMD64/ARM64 images to `ghcr.io/<owner>/consort` on default-branch pushes and `v*` tags using `GITHUB_TOKEN`; PRs never publish. GitHub requires this app's `.github/` to be at the repository root. CI publishes images, but does not deploy the server.
+The site is public with no login; only the proxy publishes ports. The OpenRouter key stays server-side. The app runs non-root with a read-only filesystem. `.github/workflows/docker-publish.yml` tests and publishes AMD64/ARM64 images to `ghcr.io/<owner>/consort` on default-branch pushes and `v*` tags using `GITHUB_TOKEN`; PRs never publish. GitHub requires this app's `.github/` to be at the repository root. CI publishes images, but does not deploy the server.
 
 ## Live routing benchmarks
 
@@ -103,13 +105,13 @@ See **[the measured routing report](docs/routing-benchmark-2026-09-18.md)**: 64 
 ## Security and deployment
 
 - API key stays on the server; never use a `VITE_` prefix for secrets.
-- Binds to loopback by default. No unauthenticated public deployment is enabled automatically.
+- Local development binds to loopback by default. The supplied Caddy deployment intentionally allows public access without a login.
 - Strict request/response validation, bounded request body, 45-second upstream timeout, cancellation, sanitized errors, same-origin browser checks, 20 requests/minute per process and four concurrent requests.
 - No prompt logs, database, analytics, or localStorage. Recent tasks exist in React memory until the tab closes. Exported PNGs deliberately contain the task text.
 - Tasks are sent to OpenRouter and TypeSafe and remain subject to their data policies. Don’t submit secrets.
 - No fake fallback: upstream failures produce an honest error and retry action.
 
-**Before a public X launch:** retain the deployment's password protection or replace it with a real authenticated/shared abuse gate, and set an OpenRouter key spending cap. The supplied Caddy configuration handles TLS. The in-memory limiter is a demo safeguard, not robust multi-instance protection. Set `HOST=0.0.0.0` and `APP_ORIGIN=https://your-domain` only when ready to expose it. The origin check is CSRF mitigation, not authentication.
+**Public deployment:** the supplied Caddy configuration handles TLS without a password prompt. The OpenRouter key stays server-side, but visitors' routing requests use its credits; set a provider spending cap. The in-memory limiter is a demo safeguard, not robust multi-instance protection. Set `HOST=0.0.0.0` and `APP_ORIGIN=https://your-domain` when exposing the app (already set in Compose). The origin check is CSRF mitigation, not authentication.
 
 ## Layout
 
