@@ -1,6 +1,7 @@
 # Merge into your existing stack, never run this file by itself:
 # docker compose --env-file .env --env-file .env.jev -f compose.yaml -f /path/to/model-router/deploy/compose.jev.yaml ...
 # Append the site's block from ../Caddyfile to your existing Caddyfile.
+# Copy postgres-init.sh beside your base Compose file before starting jev-db.
 services:
   caddy:
     # Keep your existing image, ports, volumes, networks, and other dependencies.
@@ -12,6 +13,10 @@ services:
     image: ${JEV_IMAGE:-ghcr.io/preacherxp/consort:latest}
     restart: unless-stopped
     init: true
+    stop_grace_period: 70s
+    depends_on:
+      jev-db:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -20,10 +25,13 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set an OpenRouter key with a spending cap}
       OPENROUTER_BASE_URL: https://openrouter.ai/api/v1
       OPENROUTER_MODEL_ID: typesafe/jev-1.13
+      POSTGRES_HOST: jev-db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a dedicated Consort database password}
     expose:
       - "3007"
     networks:
       - purecode
+      - jev_storage
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
@@ -39,3 +47,34 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  jev-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set a separate database bootstrap password}
+      CONSORT_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set a dedicated Consort database password}
+    volumes:
+      - jev_db_data:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/consort.sh:ro
+    networks:
+      - jev_storage
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  jev_db_data:
+
+networks:
+  jev_storage:
+    internal: true

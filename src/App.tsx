@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, ArrowUpRight, Check, ChevronDown, Heart, Loader2, RotateCcw, SlidersHorizontal, Sparkles, X, Zap } from 'lucide-react';
-import { routeResultSchema, catalogMeta, findModel, models, priorities, type Effort, type Priority, type RouteResult } from '../shared/contracts';
+import { catalogMeta, findModel, models, priorities, type Effort, type Priority, type RouteResult } from '../shared/contracts';
 import { saveCard } from './share-card';
 import { DecisionDetails } from './DecisionDetails';
 import { MatchDeck, MatchLobby } from './MatchDeck';
 import { MatchStage } from './MatchStage';
 import { controlSpring } from './motion';
+import { readRoutingResponse } from './api-response';
 import { matchCopy, type Introduction } from '../shared/matches';
 
 const examples = [
@@ -106,9 +107,7 @@ export function App() {
         body: JSON.stringify({ task: task.trim(), priority }),
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(50000)]),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? 'Something went wrong. Try again.');
-      const next = routeResultSchema.parse(data);
+      const next = await readRoutingResponse(response);
       if (request.current !== controller) return;
       setResult(next);
       setHistory(previous => [{ task: task.trim(), priority, result: next }, ...previous].slice(0, 3));
@@ -182,7 +181,7 @@ export function App() {
           <div className="composer-actions">
             <button className={`route-button ${loading ? 'is-loading' : ''}`} type="submit" title="⌘ / Ctrl + Enter" disabled={loading || task.trim().length < 8}>{loading ? <><Loader2 className="spin" size={18} /> Introducing…</> : <>Find my match <ArrowRight size={18} /></>}</button>
           </div>
-          <p id="task-help" className="privacy-note">Tasks go to OpenRouter & TypeSafe. Don’t include secrets.</p>
+          <p id="task-help" className="privacy-note">Tasks go to OpenRouter & TypeSafe. Submitted tasks and responses are saved on our server. Don’t include secrets.</p>
         </form>
       </motion.section>
 
@@ -194,7 +193,7 @@ export function App() {
     </main>
 
     <dialog ref={dialog} onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }} aria-labelledby="dialog-title">
-      <div className="dialog-inner"><button className="dialog-close" aria-label="Close explanation" onClick={() => dialog.current?.close()}><X size={20} /></button><span className="eyebrow">MEET YOUR CONSORT</span><h2 id="dialog-title">Jev has good taste.<br />You have the final say.</h2><p>Jev evaluates {models.length} models, the task’s required effort, its category, and a budget option using OpenRouter’s Decisions API. The full response and supplied criteria are visible below each recommendation. The recommended model is <strong>not executed</strong>.</p><div className="logic-steps"><p><span>01</span><strong>You describe the task.</strong> Context beats a clever prompt.</p><p><span>02</span><strong>Jev makes the introductions.</strong> Your priority changes the shortlist.</p><p><span>03</span><strong>You make the match.</strong> Pass or match, then copy your pick or save a card. Swiping never calls a model.</p></div><h3>THE CANDIDATES <span>{models.length} MODELS</span></h3><p className="dialog-fineprint">{catalogMeta.policy} Catalog verified {catalogMeta.verifiedAt.slice(0, 10)}.</p><div className="catalog-list">{models.map(model => <div key={model.id}><span>{model.name}<small>{model.provider} · {model.released}{model.supersededBy ? ' · older generation' : ''}{model.preview ? ' · preview' : ''}</small></span><span>${Number(model.inputPerMillion.toFixed(3))} / ${Number(model.outputPerMillion.toFixed(3))}</span></div>)}</div><p className="dialog-fineprint">Listed USD per 1M input / output tokens, from an OpenRouter catalog snapshot. Not a task-price estimate; live rates may differ. A lower-cost alternative has lower or equal rates for both token types.</p><p className="dialog-fineprint">Recommendations are heuristic, not benchmarks. Summaries are authored from catalog descriptions and effort labels—not Jev’s private reasoning. Low / medium / high are advisory budgets; check the selected provider’s supported controls.</p><p className="dialog-fineprint">Task text is sent to OpenRouter and TypeSafe. Consort keeps recent introductions in page memory only, with no database, analytics, or browser storage. Upstream data policies still apply.</p></div>
+      <div className="dialog-inner"><button className="dialog-close" aria-label="Close explanation" onClick={() => dialog.current?.close()}><X size={20} /></button><span className="eyebrow">MEET YOUR CONSORT</span><h2 id="dialog-title">Jev has good taste.<br />You have the final say.</h2><p>Jev evaluates {models.length} models, the task’s required effort, its category, and a budget option using OpenRouter’s Decisions API. The full response and supplied criteria are visible below each recommendation. The recommended model is <strong>not executed</strong>.</p><div className="logic-steps"><p><span>01</span><strong>You describe the task.</strong> Context beats a clever prompt.</p><p><span>02</span><strong>Jev makes the introductions.</strong> Your priority changes the shortlist.</p><p><span>03</span><strong>You make the match.</strong> Pass or match, then copy your pick or save a card. Swiping never calls a model.</p></div><h3>THE CANDIDATES <span>{models.length} MODELS</span></h3><p className="dialog-fineprint">{catalogMeta.policy} Catalog verified {catalogMeta.verifiedAt.slice(0, 10)}.</p><div className="catalog-list">{models.map(model => <div key={model.id}><span>{model.name}<small>{model.provider} · {model.released}{model.supersededBy ? ' · older generation' : ''}{model.preview ? ' · preview' : ''}</small></span><span>${Number(model.inputPerMillion.toFixed(3))} / ${Number(model.outputPerMillion.toFixed(3))}</span></div>)}</div><p className="dialog-fineprint">Listed USD per 1M input / output tokens, from an OpenRouter catalog snapshot. Not a task-price estimate; live rates may differ. A lower-cost alternative has lower or equal rates for both token types.</p><p className="dialog-fineprint">Recommendations are heuristic, not benchmarks. Summaries are authored from catalog descriptions and effort labels—not Jev’s private reasoning. Low / medium / high are advisory budgets; check the selected provider’s supported controls.</p><p className="dialog-fineprint">Submitted task text is sent to OpenRouter and TypeSafe. Consort stores submitted tasks, priorities, routing responses, timestamps, and sanitized error/cancellation outcomes in PostgreSQL until the operator deletes them. Unsubmitted text, keystrokes, IP addresses, cookies, and API keys are not collected by this request logger. Recent introductions in this tab stay in page memory; no browser storage is used. Upstream and hosting-provider data policies still apply. Don’t submit sensitive information.</p></div>
     </dialog>
     <AnimatePresence>{toast && <motion.div className="toast" role="status" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}><Check size={15} />{toast}</motion.div>}</AnimatePresence>
   </div>;

@@ -1,13 +1,21 @@
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { createApi } from './app';
+import { databaseUrl, openRequestLog, type RequestLog } from './request-log';
 
+let log: RequestLog;
+try { log = await openRequestLog(databaseUrl(process.env)); }
+catch {
+  console.error(JSON.stringify({ level: 'error', event: 'database_startup_failed', message: 'Check PostgreSQL configuration, connectivity, and migration permissions.' }));
+  process.exit(1);
+}
 const port = Number(process.env.PORT ?? 3007);
 const api = createApi({
   apiKey: process.env.OPENROUTER_API_KEY ?? '',
   baseUrl: process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
   modelId: process.env.OPENROUTER_MODEL_ID ?? 'typesafe/jev-1.13',
 }, {
+  log,
   origins: [
     'http://localhost:5177', 'http://127.0.0.1:5177',
     `http://localhost:${port}`, `http://127.0.0.1:${port}`,
@@ -44,3 +52,24 @@ const server = Bun.serve({
   },
 });
 console.log(`Consort API${assets.size ? ' + web' : ''} → ${server.url}`);
+
+let stopping = false;
+async function shutdown() {
+  if (stopping) return;
+  stopping = true;
+  const deadline = setTimeout(() => {
+    console.error(JSON.stringify({ level: 'error', event: 'shutdown_deadline_exceeded' }));
+    void server.stop(true);
+    process.exit(1);
+  }, 60000);
+  deadline.unref();
+  try {
+    await server.stop(false); // Drain in-flight routing and database writes first.
+    await log.close();
+  } catch {
+    console.error(JSON.stringify({ level: 'error', event: 'shutdown_failed' }));
+    process.exitCode = 1;
+  } finally { clearTimeout(deadline); }
+  process.exit(process.exitCode ?? 0);
+}
+for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => { void shutdown(); });

@@ -28,6 +28,10 @@ services:
       context: .
     restart: unless-stopped
     init: true
+    stop_grace_period: 70s
+    depends_on:
+      jev-db:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -36,10 +40,13 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Set an OpenRouter key with a spending cap}
       OPENROUTER_BASE_URL: https://openrouter.ai/api/v1
       OPENROUTER_MODEL_ID: typesafe/jev-1.13
+      POSTGRES_HOST: jev-db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a dedicated Consort database password}
     expose:
       - "3007"
     networks:
       - purecode
+      - jev_storage
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
@@ -56,10 +63,37 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  jev-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set a separate database bootstrap password}
+      CONSORT_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set a dedicated Consort database password}
+    volumes:
+      - jev_db_data:/var/lib/postgresql/data
+      - ./deploy/postgres-init.sh:/docker-entrypoint-initdb.d/consort.sh:ro
+    networks:
+      - jev_storage
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   caddy_data:
   caddy_config:
+  jev_db_data:
 
 networks:
   purecode:
     driver: bridge
+  jev_storage:
+    internal: true

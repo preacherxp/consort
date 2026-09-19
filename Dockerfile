@@ -19,7 +19,7 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=3007
 COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
 COPY --from=build --chown=bun:bun /app/dist ./dist
 COPY --chown=bun:bun package.json ./
-COPY --chown=bun:bun server/index.ts server/app.ts server/router.ts server/model-criteria.ts ./server/
+COPY --chown=bun:bun server/index.ts server/app.ts server/router.ts server/model-criteria.ts server/request-log.ts ./server/
 COPY --chown=bun:bun shared ./shared
 USER bun
 EXPOSE 3007

@@ -114,6 +114,7 @@ export async function routeTask(input: z.infer<typeof requestSchema>, config: Ro
     const trace = makeTrace(payload, await response.json());
     return { ...parseDecision(trace.response), elapsedMs: Math.round(performance.now() - started), router: trace.response.model, trace };
   } catch {
+    if (signal?.aborted) throw new RouterError(499, 'Routing cancelled.');
     if (timeout.aborted) throw new RouterError(504, 'Jev took too long to respond. Try again in a moment.');
     throw new RouterError(502, 'Jev returned an incomplete recommendation. Try routing once more.');
   }

@@ -6,16 +6,18 @@ Describe your task → Jev makes introductions → swipe / pass / match → copy
 
 ## Run
 
-Requires Bun 1.2+.
+Requires Bun 1.4+ and PostgreSQL 17 (the local Compose setup requires Docker).
 
 ```sh
 bun install
 cp .env.example .env # skip if .env is already configured
-# Set OPENROUTER_API_KEY in .env
+# Set OPENROUTER_API_KEY, two distinct database passwords, and DATABASE_URL in .env.
+# Generate each password with: openssl rand -hex 32
+docker compose --env-file .env -f deploy/compose.postgres.local.yaml up -d --wait
 bun run dev
 ```
 
-Open **http://localhost:5177**. The API listens on `127.0.0.1:3007`. This project is independent of Incident Commander. Its ignored, permission-restricted `.env` contains only its own configuration and a copy of the OpenRouter key; no database or other app secrets were copied.
+Open **http://localhost:5177**. The API listens on `127.0.0.1:3007`. This project is independent of Incident Commander. Its ignored environment files contain only its own configuration and credentials. The local PostgreSQL instance uses a separate `consort-local` project/volume and loopback port 5438; no Incident Commander database or credentials are reused. Database settings may instead live in ignored `.env.local` (pass that file to the local Compose command).
 
 ```sh
 bun run build       # TypeScript check + production web bundle
@@ -89,10 +91,16 @@ See **[docs/deployment.md](docs/deployment.md)** for `https://jev.purecode.sh`, 
 
 - Standalone: `compose.yaml` + `Caddyfile`.
 - Existing stack: `deploy/compose.jev.yaml`; append the site's block to your current Caddyfile.
-- Runtime settings: `.env.production.example` (never commit the filled-in file).
+- Runtime settings: `.env.production.example` (never commit the filled-in file). PostgreSQL and both database passwords are required before deploying the logging-enabled image; the existing-stack overlay also needs `deploy/postgres-init.sh` copied beside its base Compose file.
 - Local verification: `bun run test:deployment` builds and tests isolated Docker containers with dummy credentials and no paid requests.
 
 The site is public with no login; only the proxy publishes ports. The OpenRouter key stays server-side. The app runs non-root with a read-only filesystem. `.github/workflows/docker-publish.yml` tests and publishes AMD64/ARM64 images to `ghcr.io/<owner>/consort` on default-branch pushes and `v*` tags using `GITHUB_TOKEN`; PRs never publish. GitHub requires this app's `.github/` to be at the repository root. CI publishes images, but does not deploy the server.
+
+## PostgreSQL request logging
+
+The server commits each admitted task/priority before calling Jev, then stores the exact validated response (including its trace), timings, and sanitized error/cancellation outcomes before responding. It does not collect keystrokes, unsubmitted text, visitor headers/IPs/cookies, or credentials. The UI discloses server-side storage; local browsing/swiping remains local.
+
+PostgreSQL is required: storage failures return 503 rather than silently discard results, and only database writes—not paid requests—are retried. Data persists until the operator deletes it. The bundled database uses a dedicated non-superuser app role, private network, and persistent volume. See **[request logging and operations](docs/request-logging.md)** for schema, inspection queries, failure guarantees/limitations, retention, backups, and migration details.
 
 ## Live routing benchmarks
 
@@ -107,7 +115,7 @@ See **[the measured routing report](docs/routing-benchmark-2026-09-18.md)**: 64 
 - API key stays on the server; never use a `VITE_` prefix for secrets.
 - Local development binds to loopback by default. The supplied Caddy deployment intentionally allows public access without a login.
 - Strict request/response validation, bounded request body, 45-second upstream timeout, cancellation, sanitized errors, same-origin browser checks, 20 requests/minute per process and four concurrent requests.
-- No prompt logs, database, analytics, or localStorage. Recent tasks exist in React memory until the tab closes. Exported PNGs deliberately contain the task text.
+- Admitted tasks and routing responses are retained server-side in PostgreSQL until operator deletion, as disclosed in the UI. No client analytics, keystroke collection, or localStorage. Recent introductions also exist in React memory until the tab closes; exported PNGs deliberately contain task text.
 - Tasks are sent to OpenRouter and TypeSafe and remain subject to their data policies. Don’t submit secrets.
 - No fake fallback: upstream failures produce an honest error and retry action.
 
@@ -118,7 +126,9 @@ See **[the measured routing report](docs/routing-benchmark-2026-09-18.md)**: 64 
 - `src/` — React UI, swipeable match deck, decision inspector, CSS, match-card renderer
 - `shared/` — catalog, Zod contracts, evidence-backed introductions and match copy
 - `server/router.ts` — Decisions request/response adapter
-- `server/app.ts` — HTTP validation and request limits
+- `server/app.ts` — HTTP validation, request limits, and durable logging integration
+- `server/request-log.ts` — PostgreSQL migration, request/outcome persistence, retry and health checks
+- `deploy/postgres-init.sh` — dedicated database and non-superuser application role bootstrap
 - `server/index.ts` — Bun server and explicit static-asset allowlist
 - `scripts/refresh-catalog.ts` — reviewed model coverage and live catalog refresh
 - `server/*.test.ts` — API contracts, candidate provenance, immutable traces and user-selected match tests

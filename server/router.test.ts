@@ -155,6 +155,22 @@ describe('Decisions integration', () => {
     await expect(routeTask(input, config, fetcher({}))).rejects.toThrow('incomplete recommendation');
     await expect(routeTask(input, { ...config, apiKey: '' }, fetcher())).rejects.toThrow('API key');
   });
+  test('preserves cancellation when the provider body is still streaming', async () => {
+    const controller = new AbortController();
+    let opened: () => void = () => {};
+    const ready = new Promise<void>(resolve => { opened = resolve; });
+    const streaming = (async (_url: unknown, init?: RequestInit) => new Response(new ReadableStream({
+      start(body) {
+        body.enqueue(new TextEncoder().encode('{"answers":'));
+        init!.signal!.addEventListener('abort', () => body.error(init!.signal!.reason), { once: true });
+        opened();
+      },
+    }))) as typeof fetch;
+    const pending = routeTask(input, config, streaming, controller.signal);
+    await ready; controller.abort();
+    try { await pending; throw new Error('Expected cancellation'); }
+    catch (error) { expect(error).toBeInstanceOf(RouterError); expect((error as RouterError).status).toBe(499); }
+  });
   test('bounds provider time and supports cancellation', async () => {
     const hanging = (async (_url: unknown, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });

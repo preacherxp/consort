@@ -1,0 +1,23 @@
+# Local development only; separate from Incident Commander's database.
+name: consort-local
+services:
+  jev-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set a separate database bootstrap password}
+      CONSORT_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set a dedicated Consort database password}
+    ports:
+      - "127.0.0.1:${POSTGRES_LOCAL_PORT:-5438}:5432"
+    volumes:
+      - jev_db_data:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/consort.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+volumes:
+  jev_db_data:

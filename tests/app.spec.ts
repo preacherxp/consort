@@ -271,6 +271,32 @@ test('handles provider errors honestly and retries', async ({ page }) => {
   await expect(page.locator('.model-profile h2')).toHaveText('Claude Sonnet 5');
 });
 
+for (const failure of [
+  { name: 'HTML gateway error', status: 502, contentType: 'text/html', body: '<!DOCTYPE html><h1>PRIVATE PROXY DIAGNOSTIC</h1>', message: 'API is unavailable (HTTP 502)' },
+  { name: 'SPA fallback', status: 200, contentType: 'text/html', body: '<!DOCTYPE html><h1>PRIVATE PROXY DIAGNOSTIC</h1>', message: 'Check that /api routes to the Consort server' },
+  { name: 'proxy access block', status: 403, contentType: 'text/html', body: '<!DOCTYPE html><h1>PRIVATE PROXY DIAGNOSTIC</h1>', message: 'request was blocked (HTTP 403)' },
+  { name: 'malformed JSON', status: 200, contentType: 'application/json', body: '{broken', message: 'did not return a valid API response' },
+  { name: 'incomplete JSON', status: 200, contentType: 'application/json', body: '{}', message: 'incomplete recommendation' },
+]) test(`handles ${failure.name} without leaking raw parsing errors and can retry`, async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/route', route => {
+    calls++;
+    return route.fulfill(calls === 1 ? { status: failure.status, contentType: failure.contentType, body: failure.body } : { json: result });
+  });
+  await page.goto('/');
+  await page.locator('#task').fill('Debug a broken payments service');
+  await page.getByRole('button', { name: /Find my match/ }).click();
+  await expect(page.getByRole('alert')).toContainText(failure.message);
+  await expect(page.getByRole('alert')).not.toContainText('PRIVATE PROXY DIAGNOSTIC');
+  await expect(page.getByRole('alert')).not.toContainText('Unexpected token');
+  expect(calls).toBe(1); // Never automatically retry a potentially paid request.
+  await expect(page.locator('#task')).toHaveValue('Debug a broken payments service');
+  await expect(page.locator('.model-profile')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.locator('.model-profile h2')).toHaveText('Claude Sonnet 5');
+  expect(calls).toBe(2);
+});
+
 test('cancels in-flight routing without displaying a stale result', async ({ page }) => {
   let release: () => void = () => {};
   const delayed = new Promise<void>(resolve => { release = resolve; });
@@ -291,6 +317,7 @@ test('explains recommendations, supports reduced motion, and fits the viewport',
   await expect(page.locator('.workspace')).toHaveCSS('opacity', '1');
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('.empty-state')).toHaveCSS('opacity', '1');
+  await expect(page.locator('#task-help')).toContainText('Submitted tasks and responses are saved on our server');
   await page.screenshot({ path: test.info().outputPath('initial.png'), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await page.locator('.route-button').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(18);
@@ -304,6 +331,9 @@ test('explains recommendations, supports reduced motion, and fits the viewport',
   await page.getByRole('button', { name: 'Meet the models' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog')).toContainText('not executed');
+  await expect(page.getByRole('dialog')).toContainText('in PostgreSQL until the operator deletes them');
+  await expect(page.getByRole('dialog')).toContainText('Unsubmitted text, keystrokes, IP addresses, cookies, and API keys are not collected');
+  await expect(page.getByRole('dialog')).not.toContainText('no database');
   const dialogAccessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
   expect(dialogAccessibility.violations).toEqual([]);
   await page.keyboard.press('Escape');

@@ -10,7 +10,8 @@ export type Priority = (typeof priorities)[number];
 export const effortSchema = z.enum(['low', 'medium', 'high']);
 export type Effort = z.infer<typeof effortSchema>;
 export const requestSchema = z.object({
-  task: z.string().trim().min(8, 'Give us a little more detail (at least 8 characters).').max(4000),
+  task: z.string().trim().min(8, 'Give us a little more detail (at least 8 characters).').max(4000)
+    .refine(value => !/\u0000|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(value), 'Use valid Unicode text without null characters.'),
   priority: z.enum(priorities).default('balanced'),
 }).strict();
 const modelId = z.string().refine(id => models.some(model => model.id === id), 'Unknown model');
